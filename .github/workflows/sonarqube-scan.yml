@@ -18,11 +18,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Install dependencies
-        run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest pytest-cov ruff
+        # requirements.txt is a decade-old pinned set (this is Miguel Grinberg's Flask
+        # Mega-Tutorial) with real internal conflicts (urllib3 vs elasticsearch vs
+        # requests) and packages that no longer build under modern Python at all. No
+        # tests exist yet that would need the app's own runtime deps, so skip it here
+        # -- whoever adds real tests will need to sort that dependency tree out then.
+        run: pip install pytest pytest-cov ruff
       - name: Lint with ruff
         run: ruff check --output-format=json --output-file=ruff-report.json .
         continue-on-error: true
