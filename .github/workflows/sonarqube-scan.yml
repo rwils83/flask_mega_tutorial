@@ -1,0 +1,44 @@
+name: SonarQube Scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        # requirements.txt is a decade-old pinned set (this is Miguel Grinberg's Flask
+        # Mega-Tutorial) with real internal conflicts (urllib3 vs elasticsearch vs
+        # requests) and packages that no longer build under modern Python at all. No
+        # tests exist yet that would need the app's own runtime deps, so skip it here
+        # -- whoever adds real tests will need to sort that dependency tree out then.
+        run: pip install pytest pytest-cov ruff
+      - name: Lint with ruff
+        run: ruff check --output-format=json --output-file=ruff-report.json .
+        continue-on-error: true
+      - name: Run tests with coverage
+        run: pytest --cov=. --cov-report=xml:coverage.xml || [ $? -eq 5 ]
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.python.ruff.reportPaths=ruff-report.json
+            -Dsonar.qualitygate.wait=true
